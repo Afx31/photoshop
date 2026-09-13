@@ -1,0 +1,8 @@
+/build/
+/photo
+/photo.desktop
+__pycache__/
+*.so
+*.o
+.cache/
+CMakeLists.txt.user
