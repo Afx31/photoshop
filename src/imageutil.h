@@ -14,7 +14,7 @@ inline const QSet<QString> kImageExts = {
 
 QImage rotateImage(const QImage &im, int rotation);
 QImage cropImage(const QImage &im, const std::optional<QRectF> &crop);
-QImage scalePreview(const QImage &im, int maxSide = 2048);
+QImage scalePreview(const QImage &im, int maxSide = 8192);
 QImage applyColor(const QImage &im, const Adjustments &adj);
 QImage develop(const QImage &im, const Adjustments &adj, bool preview = false);
 QImage loadImage(const QString &path, int maxSide = 0);

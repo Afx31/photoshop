@@ -34,7 +34,7 @@ protected:
 private:
     Photo *current();
     void openFolder();
-    void showIndex(int index);
+    void showIndex(int index, bool syncStrip = true);
     void rebuildPreview(bool keepView);
     void requestProcess(bool keepView = true);
     void kick();
@@ -48,6 +48,7 @@ private:
     void markDirty();
     void saveCurrent();
     void saveAll();
+    void deleteSelected();
     void updateStatus();
     void toast(const QString &text);
     QToolButton *iconBtn(const QString &theme, const QString &tip, std::function<void()> cb);

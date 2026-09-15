@@ -51,7 +51,7 @@ void PhotoViewer::fit() {
 
 void PhotoViewer::actual() {
     fitted_ = false;
-    zoom_ = 1.0;
+    zoom_ = 1.0 / qMax(1.0, devicePixelRatioF());
     pan_ = QPointF((width() - texW_ * zoom_) / 2.0, (height() - texH_ * zoom_) / 2.0);
     clampPan();
     update();
@@ -233,8 +233,12 @@ void PhotoViewer::paintEvent(QPaintEvent *) {
     p.fillRect(rect(), QColor(0x14, 0x14, 0x14));
     if (image_.isNull())
         return;
-    const QRectF ir = imageRect();
-    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    QRectF ir = imageRect();
+    const qreal dpr = devicePixelRatioF();
+    ir = QRectF(QPointF(std::round(ir.x() * dpr) / dpr, std::round(ir.y() * dpr) / dpr),
+                QSizeF(std::round(ir.width() * dpr) / dpr, std::round(ir.height() * dpr) / dpr));
+    const bool scaled = std::abs(ir.width() * dpr - texW_) > 0.5 || std::abs(ir.height() * dpr - texH_) > 0.5;
+    p.setRenderHint(QPainter::SmoothPixmapTransform, scaled);
     p.drawImage(ir, image_);
     if (!cropMode_)
         return;

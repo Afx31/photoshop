@@ -19,7 +19,7 @@ public:
     void actual();
     void zoomBy(double factor);
     void zoomBy(double factor, QPointF anchor);
-    double zoom() const { return zoom_; }
+    double zoom() const { return zoom_ * qMax(1.0, devicePixelRatioF()); }
 
     void beginCrop(const std::optional<QRectF> &crop);
     void endCrop(bool apply);

@@ -11,6 +11,7 @@
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QGridLayout>
@@ -191,7 +192,7 @@ PhotoWindow::PhotoWindow(QWidget *parent) : QWidget(parent) {
     stack_->setCurrentIndex(0);
 
     film_ = new Filmstrip;
-    film_->onSelect = [this](int i) { showIndex(i); };
+    film_->onSelect = [this](int i) { showIndex(i, false); };
     film_->hide();
 
     status_ = new QLabel;
@@ -317,7 +318,7 @@ void PhotoWindow::loadPath(const QString &path) {
     });
 }
 
-void PhotoWindow::showIndex(int index) {
+void PhotoWindow::showIndex(int index, bool syncStrip) {
     if (photos_.isEmpty())
         return;
     if (cropping_)
@@ -325,7 +326,8 @@ void PhotoWindow::showIndex(int index) {
     index = qBound(0, index, photos_.size() - 1);
     index_ = index;
     Photo *photo = current();
-    film_->select(index);
+    if (syncStrip)
+        film_->select(index);
     panel_->setAdjustments(photo->adj);
     viewer_->setFocus();
     title_->setText(QFileInfo(photo->path).fileName());
@@ -658,6 +660,64 @@ void PhotoWindow::saveAll() {
     });
 }
 
+void PhotoWindow::deleteSelected() {
+    QVector<int> sel = film_->selected();
+    if (sel.isEmpty() && index_ >= 0)
+        sel.append(index_);
+    if (sel.isEmpty())
+        return;
+    if (cropping_)
+        finishCrop(false);
+    std::sort(sel.begin(), sel.end());
+    const int pivot = sel.first();
+    int deleted = 0;
+    QString lastName;
+    for (int n = sel.size() - 1; n >= 0; --n) {
+        const int gone = sel[n];
+        if (gone < 0 || gone >= photos_.size())
+            continue;
+        const QString path = photos_[gone].path;
+        const QString name = QFileInfo(path).fileName();
+        if (!QFile::moveToTrash(path) && !QFile::remove(path)) {
+            toast(QStringLiteral("Could not delete %1").arg(name));
+            continue;
+        }
+        lastName = name;
+        photos_.removeAt(gone);
+        film_->removeAt(gone);
+        ++deleted;
+        if (index_ == gone)
+            index_ = -1;
+        else if (index_ > gone)
+            --index_;
+    }
+    if (deleted == 0)
+        return;
+    if (deleted == 1)
+        toast(QStringLiteral("Deleted %1").arg(lastName));
+    else
+        toast(QStringLiteral("Deleted %1 photos").arg(deleted));
+    if (photos_.isEmpty()) {
+        ++loadId_;
+        ++procId_;
+        ++folderGen_;
+        pending_.reset();
+        index_ = -1;
+        original_ = {};
+        basePreview_ = {};
+        cropPreview_ = {};
+        viewer_->clear();
+        film_->hide();
+        panel_->setEnabled(false);
+        stack_->setCurrentIndex(0);
+        title_->setText(QStringLiteral("Photo"));
+        subtitle_->setText(QStringLiteral("Open a folder of photos"));
+        status_->clear();
+        return;
+    }
+    showIndex(qBound(0, pivot, photos_.size() - 1));
+}
+
 void PhotoWindow::updateStatus() {
     Photo *photo = current();
     if (!photo) {
@@ -703,6 +763,10 @@ void PhotoWindow::keyPressEvent(QKeyEvent *event) {
     }
     if ((key == Qt::Key_Right || key == Qt::Key_PageDown) && !ctrl) {
         showIndex(index_ + 1);
+        return;
+    }
+    if (key == Qt::Key_Delete && !ctrl) {
+        deleteSelected();
         return;
     }
     if (key == Qt::Key_Plus || key == Qt::Key_Equal) {
